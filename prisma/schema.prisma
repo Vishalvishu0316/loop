@@ -1,0 +1,206 @@
+// Prisma schema for LOOP - Customer Feedback Intelligence Platform
+// Multi-tenant with workspace isolation, RBAC, AI features
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ ENUMS ============
+
+enum UserRole {
+  ADMIN
+  ANALYST
+  VIEWER
+}
+
+enum Sentiment {
+  POS
+  NEU
+  NEG
+}
+
+enum FeedbackStatus {
+  NEW
+  REVIEWED
+  ACTIONED
+}
+
+enum InsightType {
+  ANSWER
+  SUMMARY
+  ALERT
+}
+
+// ============ TENANT: WORKSPACE ============
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  // Relations
+  users     User[]
+  feedback  Feedback[]
+  themes    Theme[]
+  reports   Report[]
+  insights  Insight[]
+
+  @@index([name])
+}
+
+// ============ AUTH: USER + RBAC ============
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(VIEWER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Tenant link
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // Authored reports
+  authoredReports Report[] @relation("ReportAuthor")
+
+  @@index([workspaceId])
+  @@index([email])
+  @@unique([workspaceId, email])
+}
+
+// ============ FEEDBACK CORE ============
+
+model Feedback {
+  id            String         @id @default(cuid())
+  content       String
+  channel       String
+  sourceRef     String?
+  customerLabel String?
+  sentiment     Sentiment?
+  sentimentScore Float?
+  status        FeedbackStatus @default(NEW)
+  featureArea   String?
+  rationale     String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  // Tenant link
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // Relations
+  themeLinks FeedbackTheme[]
+  embedding  Embedding?
+
+  @@index([workspaceId])
+  @@index([workspaceId, status])
+  @@index([workspaceId, sentiment])
+  @@index([workspaceId, channel])
+  @@index([workspaceId, createdAt])
+}
+
+// ============ THEMES + CLUSTERING ============
+
+model Theme {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String
+  description String?
+  color       String   @default("#6366f1")
+  trendScore  Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Tenant link
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // Relations
+  feedbackLinks FeedbackTheme[]
+  insights      Insight[]
+  reports       Report[]
+
+  @@index([workspaceId])
+  @@unique([workspaceId, slug])
+}
+
+model FeedbackTheme {
+  feedbackId String
+  themeId    String
+  confidence Float    @default(0)
+
+  feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  theme      Theme    @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  @@id([feedbackId, themeId])
+  @@index([themeId])
+}
+
+// ============ VECTOR SEARCH: EMBEDDINGS ============
+
+model Embedding {
+  id         String   @id @default(cuid())
+  feedbackId String   @unique
+  vector     Float[]
+  createdAt  DateTime @default(now())
+
+  feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@index([feedbackId])
+}
+
+// ============ INSIGHTS (ASK LOOP HISTORY) ============
+
+model Insight {
+  id        String      @id @default(cuid())
+  question  String
+  answer    String
+  summary   String?
+  type      InsightType @default(ANSWER)
+  citedIds  String[]
+  createdAt DateTime    @default(now())
+
+  // Tenant link
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  themeId String?
+  theme   Theme?  @relation(fields: [themeId], references: [id], onDelete: SetNull)
+}
+
+// ============ REPORTS (VOC) ============
+
+model Report {
+  id          String   @id @default(cuid())
+  title       String
+  periodLabel String
+  periodStart DateTime
+  periodEnd   DateTime
+  summary     String
+  markdown    String
+  contentJson Json?
+  createdAt   DateTime @default(now())
+
+  // Tenant link
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // Author
+  generatedById String?
+  generatedBy   User?   @relation("ReportAuthor", fields: [generatedById], references: [id], onDelete: SetNull)
+
+  themeId String?
+  theme   Theme?  @relation(fields: [themeId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([workspaceId, createdAt])
+}

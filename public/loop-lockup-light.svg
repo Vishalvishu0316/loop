@@ -1,0 +1,10 @@
+<svg width="260" height="70" viewBox="0 0 260 70" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(0, 5) scale(0.62)">
+    <circle cx="45" cy="50" r="32" fill="none" stroke="#14181F" stroke-width="7"
+      stroke-dasharray="184.3 16.8" stroke-linecap="round"/>
+    <path d="M 75 50 L 84 50 L 87 40 L 92 60 L 95 50 L 104 50"
+      stroke="#E8A33D" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+  <text x="82" y="45" font-family="'IBM Plex Sans', Arial, sans-serif" font-weight="700"
+    font-size="34" letter-spacing="0.5" fill="#14181F">LOOP</text>
+</svg>
