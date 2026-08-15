@@ -14,7 +14,7 @@ Built for the **Zidio Development Web Development Track (Corporate-Grade Track)*
 ---
 
 ## 🌐 Live Deployment & Links
-- **Live Demo URL**: [https://your-deployment-url.vercel.app](https://your-deployment-url.vercel.app) 
+- **Live Demo URL**: [https://your-deployment-url.vercel.app](https://loop-rzcw.vercel.app) 
 
 ---
 
